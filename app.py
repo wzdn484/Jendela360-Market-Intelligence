@@ -112,7 +112,30 @@ def build_display_frame(df: pd.DataFrame) -> pd.DataFrame:
     visible = [col for col in DISPLAY_COLUMNS if col in df.columns]
     display = df[visible].rename(columns=DISPLAY_COLUMNS).copy()
 
-    for col in ("Harga / Bulan (RM)", "Harga / Tahun (RM)", "Ukuran (sqft)"):
+    # Logika untuk mengisi data harga tahunan yang kosong
+    if "Harga / Bulan (RM)" in display.columns and "Harga / Tahun (RM)" in display.columns:
+        def format_yearly(row):
+            y_val = row["Harga / Tahun (RM)"]
+            m_val = row["Harga / Bulan (RM)"]
+            
+            if pd.isna(y_val) and pd.notna(m_val):
+                # Jika harga tahunan kosong tapi bulanan ada, kalikan 12
+                calc_val = int(m_val) * 12
+                return f"{calc_val:,} (estimasi dari harga bulanan x 12)"
+            elif pd.notna(y_val):
+                # Jika harga tahunan asli dari speedhome sudah ada
+                return f"{int(y_val):,}"
+            else:
+                return ""
+                
+        display["Harga / Tahun (RM)"] = display.apply(format_yearly, axis=1)
+    elif "Harga / Tahun (RM)" in display.columns:
+        display["Harga / Tahun (RM)"] = display["Harga / Tahun (RM)"].apply(
+            lambda v: "" if pd.isna(v) else f"{int(v):,}"
+        )
+
+    # Format kolom angka standar lainnya
+    for col in ("Harga / Bulan (RM)", "Ukuran (sqft)"):
         if col in display.columns:
             display[col] = display[col].apply(
                 lambda v: "" if pd.isna(v) else f"{int(v):,}"
